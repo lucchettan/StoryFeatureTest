@@ -1,4 +1,4 @@
- //
+//
 //  StoriesExplorerViewModel.swift
 //  InstaStoryFeatureTest
 //
@@ -15,7 +15,6 @@ class StoriesExplorerViewModel: ObservableObject {
     @Published var storyIndex: Int = 0
     @Published var storyItemIndex: Int = 0
     @Published var isImageLoaded: Bool = false
-    @Published var progressTimer: Timer?
     
     private var userStories: [UserStory]
     private var currentUser : User = MockedUsers.currentUser
@@ -54,28 +53,6 @@ class StoriesExplorerViewModel: ObservableObject {
         return item.likedBy.contains(where: { $0.id == currentUser.id })
     }
     
-    // MARK: - Progress Management
-    
-    func startProgress() {
-        stopProgress()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
-            self?.navigateToNext()
-        }
-    }
-    
-    func stopProgress() {
-        progressTimer?.invalidate()
-        progressTimer = nil
-    }
-    
-    func pauseProgress() {
-        stopProgress()
-    }
-    
-    func resumeProgress() {
-        startProgress()
-    }
-    
     // MARK: - Navigation
     
     func navigateToNext() {
@@ -87,7 +64,6 @@ class StoriesExplorerViewModel: ObservableObject {
         // Check if there's a next item in current story
         if storyItemIndex < story.items.count - 1 {
             storyItemIndex += 1
-            startProgress()
         } else {
             // Move to next story
             navigateToNextStory()
@@ -98,7 +74,6 @@ class StoriesExplorerViewModel: ObservableObject {
         // Check if there's a previous item in current story
         if storyItemIndex > 0 {
             storyItemIndex -= 1
-            startProgress()
         } else {
             // Move to previous story
             navigateToPreviousStory()
@@ -109,10 +84,8 @@ class StoriesExplorerViewModel: ObservableObject {
         if storyIndex < userStories.count - 1 {
             storyIndex += 1
             storyItemIndex = userStories[storyIndex].firstUnseenItemIndex(for: currentUser)
-            startProgress()
         } else {
             // End of stories - could trigger dismiss or loop
-            stopProgress()
         }
     }
     
@@ -120,7 +93,8 @@ class StoriesExplorerViewModel: ObservableObject {
         if storyIndex > 0 {
             storyIndex -= 1
             storyItemIndex = 0
-            startProgress()
+        } else {
+            // dismiss if there's no previous story
         }
     }
     
@@ -149,12 +123,6 @@ class StoriesExplorerViewModel: ObservableObject {
     
     // MARK: - Image Loading
     
-    func onImageLoaded() {
-        isImageLoaded = true
-        markCurrentItemAsSeen()
-        startProgress()
-    }
-    
     func onImageLoadFailed() {
         isImageLoaded = false
         // Continue to next even if image failed
@@ -172,11 +140,10 @@ class StoriesExplorerViewModel: ObservableObject {
     func handleTapGesture(at location: CGPoint, in geometry: GeometryProxy) {
         let screenWidth = geometry.size.width
         
+        // Tapped left side - go to previous otherwise go to next
         if location.x < screenWidth / 2 {
-            // Tapped left side - go to previous
             navigateToPrevious()
         } else {
-            // Tapped right side - go to next
             navigateToNext()
         }
     }
@@ -195,12 +162,6 @@ class StoriesExplorerViewModel: ObservableObject {
                 return .upcoming
             }
         }
-    }
-    
-    // MARK: - Cleanup
-    
-    func cleanup() {
-        stopProgress()
     }
 }
 

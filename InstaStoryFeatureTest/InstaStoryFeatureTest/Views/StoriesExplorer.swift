@@ -16,6 +16,9 @@ struct StoriesExplorer: View {
     @StateObject private var viewModel: StoriesExplorerViewModel
     var onDismiss: () -> Void
     
+    @State private var progress: Double = 0.0
+    @State private var timer: Timer? = nil
+    
     init(userStories: [UserStory], initialStoryIndex: Int = 0, modelContext: ModelContext, onDismiss: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: StoriesExplorerViewModel(
             userStories: userStories,
@@ -30,16 +33,27 @@ struct StoriesExplorer: View {
             ZStack {
                 backgroundImage(geometry: geometry)
                 
-                overlayContent
-                
                 gestureHandler(geometry: geometry)
+                
+                overlayContent
             }
         }
-//        .onAppear {
-//            viewModel.startProgress()
-//        }
         .onDisappear {
-            viewModel.stopProgress()
+            stopProgress()
+        }
+        .onChange(of: viewModel.storyIndex) { _ in
+            stopProgress()
+        }
+        .onChange(of: viewModel.storyItemIndex) { _ in
+            stopProgress()
+        }
+        .onChange(of: viewModel.isImageLoaded) { isDone in
+            startProgress()
+        }
+        .onChange(of: progress) { progress in
+            if progress == 5.0 {
+                viewModel.navigateToNext()
+            }
         }
     }
     
@@ -54,7 +68,8 @@ struct StoriesExplorer: View {
                             .frame(width: geometry.size.width, height: geometry.size.height)
                             .aspectRatio(contentMode: .fill)
                             .onAppear {
-                                viewModel.onImageLoaded()
+                                viewModel.isImageLoaded = true
+//                                startProgress()
                             }
                     case .failure(_):
                         VStack {
@@ -102,20 +117,22 @@ struct StoriesExplorer: View {
     private var progressIndicators: some View {
         HStack(spacing: 4) {
             ForEach(0..<viewModel.getProgressIndicatorStates().count, id: \.self) { index in
-                Capsule()
-                    .fill(progressColor(for: viewModel.getProgressIndicatorStates()[index]))
-                    .frame(height: 3)
-                    .overlay(alignment: .leading) {
-                        if viewModel.getProgressIndicatorStates()[index] == .current {
-                            Capsule()
-                                .fill(.white)
-                                .frame(height: 3)
-                                .frame(width: 10/* try to go from 0 to full in  */)
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(progressColor(for: viewModel.getProgressIndicatorStates()[index]))
+                        .frame(height: 3)
+                        .overlay(alignment: .leading) {
+                            if viewModel.getProgressIndicatorStates()[index] == .current {
+                                Capsule()
+                                    .fill(.white)
+                                    .frame(height: 3)
+                                    .frame(width: geo.size.width * progress)
+                            }
                         }
-                    
-                    }
+                }
             }
         }
+        .frame(height: 5)
         .padding(.horizontal)
     }
     
@@ -124,7 +141,7 @@ struct StoriesExplorer: View {
         case .completed:
             return .white
         case .current:
-            return .orange // Could be instagram gradient here
+            return .orange
         case .upcoming:
             return .gray.opacity(0.5)
         }
@@ -141,12 +158,13 @@ struct StoriesExplorer: View {
             
             Text(viewModel.currentStory?.user.name ?? "")
                 .foregroundColor(.white)
+                .lineLimit(1)
                 .font(.headline)
             
             Spacer()
             
             Button(action: {
-                viewModel.stopProgress()
+                stopProgress()
                 onDismiss()
                 dismiss()
             }) {
@@ -156,7 +174,7 @@ struct StoriesExplorer: View {
                     .foregroundStyle(.white)
             }
         }
-        .padding(.horizontal)
+        .padding()
     }
     
     private var bottomBar: some View {
@@ -168,51 +186,92 @@ struct StoriesExplorer: View {
             }) {
                 Image(systemName: viewModel.isCurrentItemLiked ? "heart.fill" : "heart")
                     .resizable()
-                    .frame(width: 24, height: 24)
+                    .frame(width: 32, height: 32)
                     .foregroundStyle(viewModel.isCurrentItemLiked ? .red : .white)
+                    .padding()
+                    .background(
+                        Color.black
+                            .opacity(0.001)
+                            .frame(width: 60, height: 60)
+                    )
             }
         }
         .padding(.horizontal)
     }
     
     private func gestureHandler(geometry: GeometryProxy) -> some View {
-        Color.clear
-            .contentShape(Rectangle())
-            .onTapGesture { location in
-                viewModel.handleTapGesture(at: location, in: geometry)
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
             }
-            .gesture(
-                DragGesture()
-                    .onChanged { _ in
-                        viewModel.pauseProgress()
-                    }
-                    .onEnded { value in
-                        let horizontalDistance = value.translation.width
-                        let verticalDistance = value.translation.height
-                        
-                        if abs(verticalDistance) > abs(horizontalDistance) {
-                            // Vertical swipe
-                            if verticalDistance > 100 {
-                                // Swipe down - dismiss
-                                viewModel.stopProgress()
-                                onDismiss()
-                                dismiss()
-                            } else {
-                                viewModel.resumeProgress()
-                            }
+        }
+        .background(Color.clear)
+        .contentShape(Rectangle())
+        .allowsHitTesting(true)
+        .onTapGesture { location in
+            viewModel.handleTapGesture(at: location, in: geometry)
+            stopProgress()
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { _ in
+                    pauseProgress()
+                }
+                .onEnded { value in
+                    let horizontalDistance = value.translation.width
+                    let verticalDistance = value.translation.height
+                    if abs(verticalDistance) > abs(horizontalDistance) {
+                        if verticalDistance > 100 {
+                            stopProgress()
+                            onDismiss()
+                            dismiss()
                         } else {
-                            // Horizontal swipe
-                            if horizontalDistance > 100 {
-                                // Swipe right - previous story
-                                viewModel.navigateToPreviousStory()
-                            } else if horizontalDistance < -100 {
-                                // Swipe left - next story
-                                viewModel.navigateToNextStory()
-                            } else {
-                                viewModel.resumeProgress()
-                            }
+                            resumeProgress()
+                        }
+                    } else {
+                        if horizontalDistance > 100 {
+                            viewModel.navigateToPreviousStory()
+                            stopProgress()
+                        } else if horizontalDistance < -100 {
+                            viewModel.navigateToNextStory()
+                            stopProgress()
+                        } else {
+                            resumeProgress()
                         }
                     }
-            )
+                }
+        )
+//        .zIndex(1) // Ensure it's below the bottomBar
+    }
+    
+    private func startProgress() {
+        stopProgress()
+        progress = 0.0
+        let interval = 0.02
+        let totalDuration = 5.0
+        var elapsed = 0.0
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { activeTimer in
+            elapsed += interval
+            progress = min(elapsed / totalDuration, 1.0)
+            if progress >= 1.0 {
+                activeTimer.invalidate()
+                timer = nil
+                viewModel.navigateToNext()
+            }
+        }
+    }
+    
+    private func stopProgress() {
+        timer?.invalidate()
+        timer = nil
+    }
+    
+    private func pauseProgress() {
+        stopProgress()
+    }
+    
+    private func resumeProgress() {
+        startProgress()
     }
 }
