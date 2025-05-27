@@ -234,8 +234,12 @@ struct StoriesExplorer: View {
             progress = min(elapsed / totalDuration, 1.0)
             if progress >= 1.0 {
                 stopProgress()
-                viewModel.markCurrentItemAsSeen()
-                viewModel.navigateToNext()
+                
+                // Fixed: use Task/Mainactor to ensure both methods run safely on the main thread and removes the Swift 6 isolation warning
+                Task { @MainActor in
+                    viewModel.markCurrentItemAsSeen()
+                    viewModel.navigateToNext()
+                }
             }
         }
     }
