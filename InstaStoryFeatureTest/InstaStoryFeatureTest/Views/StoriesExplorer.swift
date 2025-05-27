@@ -5,6 +5,7 @@
 //  Created by Nicolas Lucchetta on 27/05/2025.
 //
 
+import SwiftData
 import SwiftUI
 
 struct StoriesExplorer: View {
@@ -12,23 +13,48 @@ struct StoriesExplorer: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
-    var userStories: [UserStory] = []
-    @State var storyIndex: Int = 0
-    @State var storyItemIndex: Int = 0
+    @StateObject private var viewModel: StoriesExplorerViewModel
     var onDismiss: () -> Void
     
+    init(userStories: [UserStory], initialStoryIndex: Int = 0, modelContext: ModelContext, onDismiss: @escaping () -> Void) {
+        self._viewModel = StateObject(wrappedValue: StoriesExplorerViewModel(
+            userStories: userStories,
+            initialStoryIndex: initialStoryIndex,
+            modelContext: modelContext
+        ))
+        self.onDismiss = onDismiss
+    }
+    
     var body: some View {
-        ZStack {
-            if let imageURL = URL(string: userStories[storyIndex].items[storyItemIndex].imageURL) {
+        GeometryReader { geometry in
+            ZStack {
+                backgroundImage(geometry: geometry)
+                
+                overlayContent
+                
+                gestureHandler(geometry: geometry)
+            }
+        }
+//        .onAppear {
+//            viewModel.startProgress()
+//        }
+        .onDisappear {
+            viewModel.stopProgress()
+        }
+    }
+    
+    private func backgroundImage(geometry: GeometryProxy) -> some View {
+        Group {
+            if let imageURL = viewModel.currentImageURL {
                 AsyncImage(url: imageURL) { phase in
                     switch phase {
                     case .success(let image):
                         image
                             .resizable()
-                            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
                             .aspectRatio(contentMode: .fill)
                             .onAppear {
-                                // Trigger a progress
+                                viewModel.onImageLoaded()
                             }
                     case .failure(_):
                         VStack {
@@ -36,8 +62,10 @@ struct StoriesExplorer: View {
                                 .foregroundColor(.gray)
                             Text("Failed to load image")
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
                         .onAppear {
-                            // Trigger a progress
+                            viewModel.onImageLoadFailed()
                         }
                     case .empty:
                         ZStack {
@@ -46,66 +74,145 @@ struct StoriesExplorer: View {
                                 .tint(.white)
                         }
                         .onAppear {
-                            // Navigate to next
+                            viewModel.onImageLoadEmpty()
                         }
                     @unknown default:
                         Color.black
                     }
                 }
+            } else {
+                Color.black
             }
-            
-            // UI Overlays
-            VStack {
-                // Progress Indicators
-                HStack {
-                    Capsule()
-                    Capsule()
-                    Capsule()
-                }
-                
-                HStack {
-                    if let avatarImage = userStories[storyIndex].avatarImage {
-                        Image(uiImage: avatarImage)
-                            .resizable()
-                            .clipShape(Circle())
-                            .frame(width: 40, height: 40)
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        onDismiss()
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .resizable()
-                            .frame(width: 30, height: 30)
-                            .foregroundStyle(.white)
-                    }
-                }
-                .padding()
-                
-                Spacer()
-                
-                HStack {
-                    Spacer()
-                    
-                    Button(action: { /* Like/Dislike */}) {
-                        Image(systemName: "heart") // heart.fill when like white/red if liked/disliked
-                    }
-                }
-            }
-            .padding(.vertical, 40)
-            
-            // Gesture handlers
-            // - onTap left/right side go next/previous item(if available) or story if next/previous item is unavailable
-            // - on swipe left/right go next/previous story
-            // - on swipe down dismiss+onDismiss
-            Color.clear
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    
-                }
         }
+    }
+    
+    private var overlayContent: some View {
+        VStack {
+            progressIndicators
+            
+            topBar
+            
+            Spacer()
+            
+            bottomBar
+        }
+        .padding(.vertical, 40)
+    }
+    
+    private var progressIndicators: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<viewModel.getProgressIndicatorStates().count, id: \.self) { index in
+                Capsule()
+                    .fill(progressColor(for: viewModel.getProgressIndicatorStates()[index]))
+                    .frame(height: 3)
+                    .overlay(alignment: .leading) {
+                        if viewModel.getProgressIndicatorStates()[index] == .current {
+                            Capsule()
+                                .fill(.white)
+                                .frame(height: 3)
+                                .frame(width: 10/* try to go from 0 to full in  */)
+                        }
+                    
+                    }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private func progressColor(for state: ProgressIndicatorState) -> Color {
+        switch state {
+        case .completed:
+            return .white
+        case .current:
+            return .orange // Could be instagram gradient here
+        case .upcoming:
+            return .gray.opacity(0.5)
+        }
+    }
+    
+    private var topBar: some View {
+        HStack {
+            if let avatarImage = viewModel.currentStory?.avatarImage {
+                Image(uiImage: avatarImage)
+                    .resizable()
+                    .clipShape(Circle())
+                    .frame(width: 40, height: 40)
+            }
+            
+            Text(viewModel.currentStory?.user.name ?? "")
+                .foregroundColor(.white)
+                .font(.headline)
+            
+            Spacer()
+            
+            Button(action: {
+                viewModel.stopProgress()
+                onDismiss()
+                dismiss()
+            }) {
+                Image(systemName: "xmark")
+                    .resizable()
+                    .frame(width: 20, height: 20)
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var bottomBar: some View {
+        HStack {
+            Spacer()
+            
+            Button(action: {
+                viewModel.toggleLike()
+            }) {
+                Image(systemName: viewModel.isCurrentItemLiked ? "heart.fill" : "heart")
+                    .resizable()
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(viewModel.isCurrentItemLiked ? .red : .white)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private func gestureHandler(geometry: GeometryProxy) -> some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture { location in
+                viewModel.handleTapGesture(at: location, in: geometry)
+            }
+            .gesture(
+                DragGesture()
+                    .onChanged { _ in
+                        viewModel.pauseProgress()
+                    }
+                    .onEnded { value in
+                        let horizontalDistance = value.translation.width
+                        let verticalDistance = value.translation.height
+                        
+                        if abs(verticalDistance) > abs(horizontalDistance) {
+                            // Vertical swipe
+                            if verticalDistance > 100 {
+                                // Swipe down - dismiss
+                                viewModel.stopProgress()
+                                onDismiss()
+                                dismiss()
+                            } else {
+                                viewModel.resumeProgress()
+                            }
+                        } else {
+                            // Horizontal swipe
+                            if horizontalDistance > 100 {
+                                // Swipe right - previous story
+                                viewModel.navigateToPreviousStory()
+                            } else if horizontalDistance < -100 {
+                                // Swipe left - next story
+                                viewModel.navigateToNextStory()
+                            } else {
+                                viewModel.resumeProgress()
+                            }
+                        }
+                    }
+            )
     }
 }
