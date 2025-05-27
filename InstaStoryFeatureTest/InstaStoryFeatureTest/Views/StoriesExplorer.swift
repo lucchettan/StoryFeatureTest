@@ -162,17 +162,12 @@ struct StoriesExplorer: View {
         .padding()
     }
     
-    private var bottomBar: some View {
+    var bottomBar: some View {
         HStack {
             Spacer()
             
             Button(action: {
-                viewModel.toggleLike()
-                // Trigger scale animation
-                isAnimatingLike = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    isAnimatingLike = false
-                }
+                likeAction()
             }) {
                 Image(systemName: viewModel.isCurrentItemLiked ? "heart.fill" : "heart")
                     .resizable()
@@ -272,5 +267,18 @@ struct StoriesExplorer: View {
     
     private func resumeProgress() {
         startProgress()
+    }
+    
+    // MARK: Custom Like action
+    
+    private func likeAction() {
+        viewModel.toggleLike()
+        // Trigger scale animation
+        isAnimatingLike = true
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            isAnimatingLike = false
+        }
     }
 }
