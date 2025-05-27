@@ -20,15 +20,14 @@ struct StoriesExplorer: View {
     @State private var timer: Timer? = nil
     @State private var isAnimatingLike: Bool = false
 
-    init(userStories: [UserStory], initialStoryIndex: Int = 0, modelContext: ModelContext, onDismiss: @escaping () -> Void) {
+    init(userStories: [UserStory], initialStoryIndex: Int = 0, onDismiss: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: StoriesExplorerViewModel(
             userStories: userStories,
-            initialStoryIndex: initialStoryIndex,
-            modelContext: modelContext
+            initialStoryIndex: initialStoryIndex
         ))
         self.onDismiss = onDismiss
     }
-    
+        
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -41,6 +40,9 @@ struct StoriesExplorer: View {
                 overlayContent
             }
             .ignoresSafeArea(.all)
+        }
+        .onAppear {
+            viewModel.setup(context: modelContext)
         }
         .onDisappear {
             stopProgress()

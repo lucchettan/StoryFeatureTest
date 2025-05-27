@@ -19,10 +19,9 @@ class StoriesExplorerViewModel: ObservableObject {
     private var currentUser : User = MockedUsers.currentUser
     private var modelContext: ModelContext
     
-    init(userStories: [UserStory], initialStoryIndex: Int = 0, modelContext: ModelContext) {
+    init(userStories: [UserStory], initialStoryIndex: Int = 0) {
         self.userStories = userStories
         self.storyIndex = initialStoryIndex
-        self.modelContext = modelContext
         
         // Set initial story item index to first unseen item
         if !userStories[storyIndex].items.isEmpty {
@@ -143,5 +142,9 @@ class StoriesExplorerViewModel: ObservableObject {
         } else {
             navigateToNext()
         }
+    }
+    
+    func setup(context: ModelContext) {
+        self.modelContext = context
     }
 }
