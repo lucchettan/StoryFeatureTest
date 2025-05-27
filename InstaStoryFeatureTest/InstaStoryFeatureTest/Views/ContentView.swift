@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    
     @Environment(\.modelContext) private var modelContext
 
     @StateObject private var viewModel = ContentViewModel()
@@ -50,7 +51,7 @@ struct ContentView: View {
                             }
                         }
                         .onTapGesture {
-                            viewModel.presentExplorer = true
+                            viewModel.selectedIndex = index
                         }
                 }
                 
@@ -63,10 +64,19 @@ struct ContentView: View {
             }
             .padding(.leading)
         }
-        .fullScreenCover(isPresented: $viewModel.presentExplorer) {
-            Text("Story selected")
+        .fullScreenCover(item: $viewModel.selectedIndex) { index in
+            StoriesExplorer(
+                userStories: viewModel.userStories,
+                storyIndex: index,
+                onDismiss: { viewModel.selectedIndex = nil }
+            )
         }
     }
+}
+
+// Workaround to use an optionnal int as item in the fullScreenCover as it requires the item to be Identifiable.
+extension Int: @retroactive Identifiable {
+    public var id: Int { self }
 }
 
 #Preview {

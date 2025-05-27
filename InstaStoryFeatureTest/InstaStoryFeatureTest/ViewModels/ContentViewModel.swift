@@ -15,7 +15,7 @@ class ContentViewModel: ObservableObject {
     @Published var userStories: [UserStory] = []
     @Published var isLoadingMore: Bool = false
     
-    @Published var presentExplorer = false
+    @Published var selectedIndex: Int?
     
     func fetchStoriesAndPreloadAvatarImages(context: ModelContext) async {
         let stories = (try? context.fetch(FetchDescriptor<UserStory>())) ?? []
