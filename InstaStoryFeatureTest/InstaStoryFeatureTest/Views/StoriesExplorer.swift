@@ -18,7 +18,8 @@ struct StoriesExplorer: View {
     
     @State private var progress: Double = 0.0
     @State private var timer: Timer? = nil
-    
+    @State private var isAnimatingLike: Bool = false
+
     init(userStories: [UserStory], initialStoryIndex: Int = 0, modelContext: ModelContext, onDismiss: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: StoriesExplorerViewModel(
             userStories: userStories,
@@ -32,11 +33,14 @@ struct StoriesExplorer: View {
         GeometryReader { geometry in
             ZStack {
                 backgroundImage(geometry: geometry)
+                    .frame(width: geometry.size.width, height: geometry.size.height * 1.2)
+                    .clipped()
                 
                 gestureHandler(geometry: geometry)
-                
+
                 overlayContent
             }
+            .ignoresSafeArea(.all)
         }
         .onDisappear {
             stopProgress()
@@ -51,7 +55,6 @@ struct StoriesExplorer: View {
                     case .success(let image):
                         image
                             .resizable()
-                            .frame(width: geometry.size.width, height: geometry.size.height)
                             .aspectRatio(contentMode: .fill)
                             .onAppear {
                                 DispatchQueue.main.async {
@@ -92,7 +95,7 @@ struct StoriesExplorer: View {
     private var overlayContent: some View {
         VStack {
             progressIndicators
-            
+                .padding(.top, 20)
             topBar
             
             Spacer()
@@ -151,6 +154,11 @@ struct StoriesExplorer: View {
                     .foregroundStyle(.white)
             }
         }
+        .background(
+            Color.black
+                .opacity(0.001)
+                .frame(height: 40)
+        )
         .padding()
     }
     
@@ -160,11 +168,18 @@ struct StoriesExplorer: View {
             
             Button(action: {
                 viewModel.toggleLike()
+                // Trigger scale animation
+                isAnimatingLike = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    isAnimatingLike = false
+                }
             }) {
                 Image(systemName: viewModel.isCurrentItemLiked ? "heart.fill" : "heart")
                     .resizable()
                     .frame(width: 32, height: 32)
                     .foregroundStyle(viewModel.isCurrentItemLiked ? .red : .white)
+                    .scaleEffect(isAnimatingLike ? 1.3 : 1.0)
+                    .animation(.easeOut(duration: 0.2), value: isAnimatingLike)
                     .padding()
                     .background(
                         Color.black
@@ -174,6 +189,7 @@ struct StoriesExplorer: View {
             }
         }
         .padding(.horizontal)
+        .padding(.bottom, 50)
     }
     
     private func gestureHandler(geometry: GeometryProxy) -> some View {
