@@ -39,27 +39,34 @@ struct ContentView: View {
     }
     
     var storyRow: some View {
-        LazyHStack {
-            ForEach(Array(viewModel.userStories.enumerated()), id: \.element.id) { index, story in
-                UserStoryCell(userStory: story, currentUser: MockedUsers.currentUser)
-                    .onTapGesture {
-                        viewModel.presentExplorer = true
-                    }
+        ScrollViewReader { proxy in
+            LazyHStack(spacing: 12) {
+                ForEach(Array(viewModel.userStories.enumerated()), id: \.element.id) { index, story in
+                    UserStoryCell(userStory: story, currentUser: MockedUsers.currentUser)
+                        .task {
+                            if index == viewModel.userStories.count - 1 {
+                                await viewModel.addMockedContent(from: modelContext, count: 5)
+
+                            }
+                        }
+                        .onTapGesture {
+                            viewModel.presentExplorer = true
+                        }
+                }
+                
+                // Loading indicator at the end
+                if viewModel.isLoadingMore {
+                    ProgressView()
+                        .frame(width: 60, height: 60)
+                        .padding(.horizontal, 15)
+                }
             }
-            
-            // Loading indicator at the end
-            if viewModel.isLoadingMore {
-                ProgressView()
-                    .frame(width: 60, height: 60)
-                    .padding(.horizontal, 15)
-            }
+            .padding(.leading)
         }
-        .padding(.leading)
         .fullScreenCover(isPresented: $viewModel.presentExplorer) {
             Text("Story selected")
         }
     }
-}
 }
 
 #Preview {

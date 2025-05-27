@@ -115,4 +115,34 @@ enum SeedData {
             )
         }
     }
+    
+    static func duplicateRandomStories(from context: ModelContext, count: Int = 5) {
+        let originals = (try? context.fetch(FetchDescriptor<UserStory>())) ?? []
+        guard !originals.isEmpty else { return }
+        
+        for _ in 0..<count {
+            let original = originals.randomElement()!
+            
+            let duplicatedUser = User(
+                name: original.user.name + " Copy \(UUID().uuidString.prefix(4))",
+                avatarURL: URL(string: "https://picsum.photos/id/\(Int.random(in: 0...1000))/400/600")
+            )
+            
+            let duplicatedItems = original.items.map { item in
+                StoryItem(
+                    seenBy: [],
+                    likedBy: [],
+                    imageURL: item.imageURL,
+                    date: item.date.addingTimeInterval(Double.random(in: -3600...0))
+                )
+            }
+            
+            let duplicatedStory = UserStory(user: duplicatedUser, items: duplicatedItems)
+            
+            context.insert(duplicatedUser)
+            context.insert(duplicatedStory)
+        }
+        
+        try? context.save()
+    }
 }

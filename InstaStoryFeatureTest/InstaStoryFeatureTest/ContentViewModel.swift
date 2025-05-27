@@ -7,7 +7,6 @@
 
 import Foundation
 import SwiftData
-import UIKit
 
 @MainActor
 class ContentViewModel: ObservableObject {
@@ -15,6 +14,7 @@ class ContentViewModel: ObservableObject {
     @Published var isLoadingAvatarsDone: Bool = false
     @Published var userStories: [UserStory] = []
     @Published var isLoadingMore: Bool = false
+    
     @Published var presentExplorer = false
     
     func fetchStoriesAndPreloadAvatarImages(context: ModelContext) async {
@@ -43,5 +43,14 @@ class ContentViewModel: ObservableObject {
         isLoadingAvatarsDone = true
         
         try? context.save()
+    }
+    
+    func addMockedContent(from context: ModelContext, count: Int = 5) async {
+        isLoadingMore = true
+        
+        SeedData.duplicateRandomStories(from: context, count: count)
+        await self.fetchStoriesAndPreloadAvatarImages(context: context)
+        
+        isLoadingMore = false
     }
 }
