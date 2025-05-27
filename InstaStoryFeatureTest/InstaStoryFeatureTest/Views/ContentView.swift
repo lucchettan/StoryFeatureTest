@@ -65,11 +65,17 @@ struct ContentView: View {
             .padding(.leading)
         }
         .fullScreenCover(item: $viewModel.selectedIndex) { index in
+//            StoriesExplorer(
+//                userStories: viewModel.userStories,
+//                storyIndex: index,
+//                onDismiss: { viewModel.selectedIndex = nil }
+//            )
+            
             StoriesExplorer(
                 userStories: viewModel.userStories,
-                storyIndex: index,
-                onDismiss: { viewModel.selectedIndex = nil }
-            )
+                initialStoryIndex: index,
+                modelContext: modelContext,
+                onDismiss: { viewModel.selectedIndex = nil })
         }
     }
 }
