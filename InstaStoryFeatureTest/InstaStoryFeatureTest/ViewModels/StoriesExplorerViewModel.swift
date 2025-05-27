@@ -57,6 +57,8 @@ class StoriesExplorerViewModel: ObservableObject {
     func navigateToNext() {
         guard let story = currentStory else { return }
 
+        DispatchQueue.main.async { markCurrentItemAsSeen() }
+        
         // Check if there's a next item in current story
         if storyItemIndex < story.items.count - 1 {
             storyItemIndex += 1
@@ -78,6 +80,8 @@ class StoriesExplorerViewModel: ObservableObject {
     }
     
     func navigateToNextStory() {
+        markCurrentItemAsSeen()
+
         if storyIndex < userStories.count - 1 {
             storyIndex += 1
             storyItemIndex = userStories[storyIndex].firstUnseenItemIndex(for: currentUser)

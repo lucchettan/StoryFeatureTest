@@ -65,17 +65,18 @@ struct ContentView: View {
             .padding(.leading)
         }
         .fullScreenCover(item: $viewModel.selectedIndex) { index in
-//            StoriesExplorer(
-//                userStories: viewModel.userStories,
-//                storyIndex: index,
-//                onDismiss: { viewModel.selectedIndex = nil }
-//            )
-            
             StoriesExplorer(
                 userStories: viewModel.userStories,
                 initialStoryIndex: index,
                 modelContext: modelContext,
-                onDismiss: { viewModel.selectedIndex = nil })
+                onDismiss: {
+                    viewModel.selectedIndex = nil
+                    // Refresh or update the UI state here if needed
+                    Task {
+                        await viewModel.fetchStoriesAndPreloadAvatarImages(context: modelContext)
+                    }
+                }
+            )
         }
     }
 }

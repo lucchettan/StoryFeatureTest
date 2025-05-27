@@ -223,7 +223,6 @@ struct StoriesExplorer: View {
                             viewModel.navigateToPreviousStory()
                         } else if horizontalDistance < -100 {
                             stopProgress()
-                            viewModel.markCurrentItemAsSeen()
                             viewModel.navigateToNextStory()
                         } else {
                             resumeProgress()
@@ -248,7 +247,6 @@ struct StoriesExplorer: View {
                 
                 // Fixed: use Task/Mainactor to ensure both methods run safely on the main thread and removes the Swift 6 isolation warning
                 Task { @MainActor in
-                    viewModel.markCurrentItemAsSeen()
                     viewModel.navigateToNext()
                 }
             }
