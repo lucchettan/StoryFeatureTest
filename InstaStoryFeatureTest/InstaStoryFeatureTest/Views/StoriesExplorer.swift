@@ -41,20 +41,6 @@ struct StoriesExplorer: View {
         .onDisappear {
             stopProgress()
         }
-        .onChange(of: viewModel.storyIndex) { _ in
-            stopProgress()
-        }
-        .onChange(of: viewModel.storyItemIndex) { _ in
-            stopProgress()
-        }
-        .onChange(of: viewModel.isImageLoaded) { isDone in
-            startProgress()
-        }
-        .onChange(of: progress) { progress in
-            if progress == 5.0 {
-                viewModel.navigateToNext()
-            }
-        }
     }
     
     private func backgroundImage(geometry: GeometryProxy) -> some View {
@@ -68,9 +54,11 @@ struct StoriesExplorer: View {
                             .frame(width: geometry.size.width, height: geometry.size.height)
                             .aspectRatio(contentMode: .fill)
                             .onAppear {
-                                viewModel.isImageLoaded = true
-//                                startProgress()
+                                DispatchQueue.main.async {
+                                    startProgress()
+                                }
                             }
+                            .id(imageURL)
                     case .failure(_):
                         VStack {
                             Image(systemName: "photo")
@@ -116,13 +104,13 @@ struct StoriesExplorer: View {
     
     private var progressIndicators: some View {
         HStack(spacing: 4) {
-            ForEach(0..<viewModel.getProgressIndicatorStates().count, id: \.self) { index in
+            ForEach(0..<(viewModel.currentStory?.items.count ?? 0), id: \.self) { index in
                 GeometryReader { geo in
                     Capsule()
-                        .fill(progressColor(for: viewModel.getProgressIndicatorStates()[index]))
+                        .fill(index < viewModel.storyItemIndex ? .white : .gray)
                         .frame(height: 3)
                         .overlay(alignment: .leading) {
-                            if viewModel.getProgressIndicatorStates()[index] == .current {
+                            if index == viewModel.storyItemIndex {
                                 Capsule()
                                     .fill(.white)
                                     .frame(height: 3)
@@ -134,17 +122,6 @@ struct StoriesExplorer: View {
         }
         .frame(height: 5)
         .padding(.horizontal)
-    }
-    
-    private func progressColor(for state: ProgressIndicatorState) -> Color {
-        switch state {
-        case .completed:
-            return .white
-        case .current:
-            return .orange
-        case .upcoming:
-            return .gray.opacity(0.5)
-        }
     }
     
     private var topBar: some View {
@@ -231,20 +208,21 @@ struct StoriesExplorer: View {
                         }
                     } else {
                         if horizontalDistance > 100 {
+                            stopProgress()
                             viewModel.navigateToPreviousStory()
-                            stopProgress()
                         } else if horizontalDistance < -100 {
-                            viewModel.navigateToNextStory()
                             stopProgress()
+                            viewModel.markCurrentItemAsSeen()
+                            viewModel.navigateToNextStory()
                         } else {
                             resumeProgress()
                         }
                     }
                 }
         )
-//        .zIndex(1) // Ensure it's below the bottomBar
     }
     
+    // MARK: Progress logic within the view to avoid concurrencies issues
     private func startProgress() {
         stopProgress()
         progress = 0.0
@@ -255,14 +233,15 @@ struct StoriesExplorer: View {
             elapsed += interval
             progress = min(elapsed / totalDuration, 1.0)
             if progress >= 1.0 {
-                activeTimer.invalidate()
-                timer = nil
+                stopProgress()
+                viewModel.markCurrentItemAsSeen()
                 viewModel.navigateToNext()
             }
         }
     }
     
     private func stopProgress() {
+        guard timer != nil else { return }
         timer?.invalidate()
         timer = nil
     }

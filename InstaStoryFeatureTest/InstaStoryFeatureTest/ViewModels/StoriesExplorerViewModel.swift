@@ -14,7 +14,6 @@ class StoriesExplorerViewModel: ObservableObject {
     
     @Published var storyIndex: Int = 0
     @Published var storyItemIndex: Int = 0
-    @Published var isImageLoaded: Bool = false
     
     private var userStories: [UserStory]
     private var currentUser : User = MockedUsers.currentUser
@@ -57,10 +56,7 @@ class StoriesExplorerViewModel: ObservableObject {
     
     func navigateToNext() {
         guard let story = currentStory else { return }
-        
-        // Mark current item as seen
-        markCurrentItemAsSeen()
-        
+
         // Check if there's a next item in current story
         if storyItemIndex < story.items.count - 1 {
             storyItemIndex += 1
@@ -71,6 +67,7 @@ class StoriesExplorerViewModel: ObservableObject {
     }
     
     func navigateToPrevious() {
+
         // Check if there's a previous item in current story
         if storyItemIndex > 0 {
             storyItemIndex -= 1
@@ -124,14 +121,10 @@ class StoriesExplorerViewModel: ObservableObject {
     // MARK: - Image Loading
     
     func onImageLoadFailed() {
-        isImageLoaded = false
-        // Continue to next even if image failed
         navigateToNext()
     }
     
     func onImageLoadEmpty() {
-        isImageLoaded = false
-        // Skip to next immediately
         navigateToNext()
     }
     
@@ -147,26 +140,4 @@ class StoriesExplorerViewModel: ObservableObject {
             navigateToNext()
         }
     }
-    
-    // MARK: - Progress Indicators Data
-    
-    func getProgressIndicatorStates() -> [ProgressIndicatorState] {
-        guard let story = currentStory else { return [] }
-        
-        return story.items.enumerated().map { index, item in
-            if index < storyItemIndex {
-                return .completed
-            } else if index == storyItemIndex {
-                return .current
-            } else {
-                return .upcoming
-            }
-        }
-    }
-}
-
-enum ProgressIndicatorState {
-    case completed
-    case current
-    case upcoming
 }
