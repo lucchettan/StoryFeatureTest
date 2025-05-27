@@ -29,17 +29,3 @@ struct UserStoryCell: View {
         }
     }
 }
-
-#Preview {
-    UserStoryCell(
-        userStory: UserStory(
-            id: .init(),
-            user: MockedUsers.mockedPage1[1],
-            items: [
-                StoryItem(
-                    seenBy: [MockedUsers.mockedPage1[0]],
-                    imageURL: "https://i.pravatar.cc/300?u=4"
-                )
-            ]),
-        currentUser: MockedUsers.mockedPage1[0])
-}

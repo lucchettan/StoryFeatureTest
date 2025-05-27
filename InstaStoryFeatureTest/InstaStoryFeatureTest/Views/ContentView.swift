@@ -68,7 +68,6 @@ struct ContentView: View {
             StoriesExplorer(
                 userStories: viewModel.userStories,
                 initialStoryIndex: index,
-                modelContext: modelContext,
                 onDismiss: {
                     viewModel.selectedIndex = nil
                     // Refresh or update the UI state here if needed

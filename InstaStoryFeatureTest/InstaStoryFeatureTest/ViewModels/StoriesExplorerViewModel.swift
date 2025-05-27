@@ -17,7 +17,7 @@ class StoriesExplorerViewModel: ObservableObject {
     
     private var userStories: [UserStory]
     private var currentUser : User = MockedUsers.currentUser
-    private var modelContext: ModelContext
+    private var modelContext: ModelContext?
     
     init(userStories: [UserStory], initialStoryIndex: Int = 0) {
         self.userStories = userStories
@@ -56,7 +56,7 @@ class StoriesExplorerViewModel: ObservableObject {
     func navigateToNext() {
         guard let story = currentStory else { return }
 
-        DispatchQueue.main.async { markCurrentItemAsSeen() }
+        DispatchQueue.main.async { self.markCurrentItemAsSeen() }
         
         // Check if there's a next item in current story
         if storyItemIndex < story.items.count - 1 {
@@ -109,7 +109,7 @@ class StoriesExplorerViewModel: ObservableObject {
             item.likedBy.append(currentUser)
         }
         
-        try? modelContext.save()
+        try? modelContext?.save()
     }
     
     func markCurrentItemAsSeen() {
@@ -117,7 +117,7 @@ class StoriesExplorerViewModel: ObservableObject {
         
         if !item.seenBy.contains(where: { $0.id == currentUser.id }) {
             item.seenBy.append(currentUser)
-            try? modelContext.save()
+            try? modelContext?.save()
         }
     }
     
