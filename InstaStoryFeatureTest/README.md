@@ -8,6 +8,15 @@ This project implements an Instagram-like story feature using SwiftUI, following
 ### MVVM Pattern
 - **Model-View-ViewModel (MVVM)**: This pattern is used to separate the UI from the business logic. The `ViewModel` handles data fetching and business logic, while the `View` is responsible for displaying the UI.
 
+#### Main Components
+- **ContentView & ContentViewModel**: 
+  - `ContentView`: The main entry point of the app, displaying the user stories. It uses a horizontal scroll view to show story avatars and manages navigation to the `StoriesExplorer`. The story row supports infinite scrolling, generating new content as the user scrolls to the last item.
+  - `ContentViewModel`: Manages the fetching and ordering of user stories as well as the avatarURL's, handles loading states, and manages the selection of stories for viewing.
+
+- **StoriesExplorer & StoriesExplorerViewModel**:
+  - `StoriesExplorer`: A full-screen view for exploring individual story items. It provides navigation through story items and displays progress indicators. Users can tap on the left or right side of the screen to navigate to the previous or next story item, respectively. Swiping left or right allows users to navigate between different stories, while swiping down dismisses the explorer.
+  - `StoriesExplorerViewModel`: Manages the current story and item indices, handles user interactions like navigating and marking items as seen, and (supposedly, but not effectively yet) ensures data persistence.
+
 ### Clean Architecture
 - **Separation of Concerns**: The architecture separates the app into layers, each with a distinct responsibility. This makes the app more maintainable and testable.
 
